@@ -53,8 +53,8 @@ int step_param = 10;      // ステップ
 // *--- センサ値関係 ---
 // 加速度
 double accX = 0.0;
-double accX_th = 1.5;      // 閾値
-
+double accX_th_min = 1.5; // 閾値
+double accX_th_max = 8;
 
 // 姿勢角
 double roll;     //-90~90の値を取る ただ普段人間の首はせいぜい-45~45くらいしか傾げないので、設計上は-45~45外は丸める
@@ -68,8 +68,8 @@ int yaw_old;
 int yaw_diff;
 
 // diffの閾値 絶対値がこれ以上の場合回転させる roll
-int th_diff = 3;
-int roll_diff_max = 20;
+int roll_diff_th_min = 3;
+int roll_diff_th_max = 20;
 
 // 誇張係数（未使用）
 int expand = 1;
@@ -84,7 +84,7 @@ void task0(void *arg)
 {
   while (1)
   {
-    //stepRoll();
+    // stepRoll();
     stepAccX();
     vTaskDelay(5); // ステッパーがセンサ値に応じて回転する1セット分を待つインターバル
     // 0でもうごきはするが挙動が不安定になりやすいので5か10くらいにしておく。50だと流石にカクつく
@@ -96,7 +96,7 @@ void task1(void *arg)
 {
   while (1)
   {
-    //stepBack();
+    // stepBack();
     vTaskDelay(20);
   }
 }
@@ -396,13 +396,13 @@ void stepRoll()
   calculateDirAndAbsDiff(roll_roundf, roll_old, dir, roll_diff);
 
   // roll_diffが一定以上の場合は回転する
-  if (roll_diff > th_diff)
+  if (roll_diff > roll_diff_th_min)
   {
     // 必要な回転量（ステップ数）を計算
     // 差を絶対値になるようにしているため、roll値が-90~90度をとるところを0~180度で考えている
     // 例）1ステップ3.44の場合90度動くには 90/3.44 = 26.16ステップ
-    targetSteps = roundf(map(roll_diff, th_diff, 20, 0, shaftSteps_max * 2)); // 目標角度をステップ数に変換
-    rotateWithSensorValue(dir, targetSteps, stepDelay);                  // memo: 多分この3つはローカル変数にしておかないとごちゃごちゃになる
+    targetSteps = roundf(map(roll_diff, roll_diff_th_min, 20, 0, shaftSteps_max * 2)); // 目標角度をステップ数に変換
+    rotateWithSensorValue(dir, targetSteps, stepDelay);                                // memo: 多分この3つはローカル変数にしておかないとごちゃごちゃになる
     // if (targetSteps != 0) {
     printSteps(dir, roll_roundf, roll_old, roll_diff);
     //}
@@ -413,7 +413,6 @@ void stepRoll()
     targetSteps = 0;
   }
 }
-
 
 // x軸方向の加速度値の処理
 void stepAccX()
@@ -437,14 +436,14 @@ void stepAccX()
   float accX_absolute = abs(accX);
 
   // accX_absolute の値に応じて targetSteps, stepDelay を割り当てるコードを書く
-  if (accX_absolute > accX_th)
+  if (accX_absolute > accX_th_min)
   {
 
-    if (accX_absolute > 8)//上限を8m/s^2として、それ以上の扱いは8にまるめる
+    if (accX_absolute > accX_th_max) // 上限を8m/s^2として、それ以上の扱いは8にまるめる
     {
-      accX_absolute = 8;
+      accX_absolute = accX_th_max;
     }
-    targetSteps = roundf(map(accX_absolute, accX_th, 8, 3, 10));
+    targetSteps = roundf(map(accX_absolute, accX_th_min, accX_th_max, 3, 10));
     stepDelay = 1000;
 
     rotateWithSensorValue(dir, targetSteps, stepDelay);
@@ -485,11 +484,11 @@ void calculateDirAndAbsDiff(int roll_roundf, int roll_old, int &dir, int &roll_d
     roll_diff = 0;
   }
 
-  if (roll_diff > 20) {
-    roll_diff = 20;//
+  if (roll_diff > roll_diff_th_max)
+  {
+    roll_diff = roll_diff_th_max; //
   }
 }
-
 
 // センサ値の取得
 void printEvent(sensors_event_t *event)
