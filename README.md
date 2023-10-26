@@ -1,2 +1,4 @@
 # extail-device-exaggeration
- Prototype of a hair device that exaggerates the movement of moving left to right and tilting the head.
+This is an Extail program.
+It is a prototype that exaggerates the movement of the body to move left and right and tilt its head.
+[extail-device-exaggeration](https://github.com/mt-sumikko/extail-device-exaggeration/blob/master/extail-device-exaggeration.ino) is written to the M5 Atom that controls Extail.
