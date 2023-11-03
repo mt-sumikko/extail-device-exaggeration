@@ -2,7 +2,7 @@
 
 #include "M5Atom.h"
 
-// *--- 9軸センサ BNO055 ---
+// *--- 9-axis sensor BNO055 ---
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
@@ -27,47 +27,45 @@ int AENBL = 19;
 int BPHASE = 23;
 int BENBL = 33;
 
-int dir = 0; // 回転方向
+int dir = 0; // Direction of rotation. 1:counterclockwise, 0:none, -1:clockwise
 
-// ステップ間のdelayMicroseconds
+// delayMicroseconds between Steps
 int stepDelay = 1200;
-int stepDelay_max = 800;  // 最速
-int stepDelay_min = 3000; // 最遅
+int stepDelay_max = 800;  // fastest
+int stepDelay_min = 3000; // slowest
 
-// モーターの仕様
-int stepAngle_pure = 18;                    // モーターのステップ角（ギア比を考慮してない）
-int gearRatio = 20;                         // ギア比 20:1
-float stepPer1Rotation = 102.5f;            // 1回転あたりのステップ数（目視で確認した）
-float stepAngle = 360.0 / stepPer1Rotation; // 1ステップの角度（ステップ角）3.51219... 約3.5度
+// Motor Specifications
+int stepAngle_pure = 18;                    // Step angle of the motor (not taking into account the gear ratio)
+int gearRatio = 20;                         // Gear ratio 20:1
+float stepPer1Rotation = 102.5f;            // Number of steps per revolution (visually confirmed)
+float stepAngle = 360.0 / stepPer1Rotation; // Angle per step (step angle) 3.51219... 約3.5度
 
-// ステップ数の計算用
-int initialPosition = 0;  // 初期位置（軸の角度）
-int targetAngle = 0;      // 目標角度（-45〜45度の範囲）
-int targetSteps = 0;      // センサ値に応じて動かすステップ数（角度からステップ数に変換）
-int shaftSteps_total = 0; // のべステップ数（現在地）
-int shaftSteps_max = 25;  // 振幅の最大値（片側分）
-int step_param = 10;      // ステップ
+// For calculating the number of steps
+int initialPosition = 0;  // Initial position (axis angle)
+int targetSteps = 0;      // Number of steps to move according to sensor value
+int shaftSteps_total = 0; // Total number of steps (current location)
+int shaftSteps_max = 25;  // Maximum amplitude (for one side)
 
-// *--- センサ値関係 ---
-// 加速度
+// *--- Sensor value ---
+// Acceleration
 double accX = 0.0;
-double accX_th_min = 1.5; // 閾値
-double accX_th_max = 8;
+double accX_th_min = 1.5; // Minimum threshold subject to exaggeration
+double accX_th_max = 8;   // Maximum threshold for applying proportionality between input values and motor rotation angle
 
-// 姿勢角
-double roll;     //-90~90の値を取る ただ普段人間の首はせいぜい-45~45くらいしか傾げないので、設計上は-45~45外は丸める
-int roll_roundf; // rollを四捨五入した整数値
-int roll_old;    // 1loop前のroll値
-int roll_diff;   // 現roll値と1loop前のroll値の差（絶対値）0-180をとる
+// Attitude angle
+double roll;     // Angle of head tilt（-90~90, but the human neck usually tilts only -45~45 at most.）
+int roll_roundf; // Integer value rounded to the nearest roll
+int roll_old;    // roll value before 1loop
+int roll_diff;   // Difference between the current roll value and the roll value before 1 loop  (absolute value, 0~180)
 
 // diffの閾値 絶対値がこれ以上の場合回転させる roll
-int roll_diff_th_min = 3;
-int roll_diff_th_max = 20;
+int roll_diff_th_min = 3;  // Minimum threshold subject to exaggeration
+int roll_diff_th_max = 20; // Maximum threshold for applying proportionality between input values and motor rotation angle
 
 // --------------------------
 // *--- Multithread tasks ---
 
-// task1：センサ値に応じてステッパーを回す
+// task1：Turn the stepper according to the sensor value
 void task0(void *arg)
 {
   while (1)
@@ -294,8 +292,7 @@ void stepRoll()
   // 最新のroll値を確認
   roll_roundf = roundf(roll); // rollの四捨五入値
   // どのくらい動かせば良いかを知るために、1つ前の角度との差を計算
-  // targetAngle = calcDiff(roll_roundf, roll_old); // ここでroll_oldからrollに動く方向がが正負のいずれかを見る
-  calculateDirAndAbsDiff(roll_roundf, roll_old, dir, roll_diff);
+  calculateDirAndAbsDiff(roll_roundf, roll_old, dir, roll_diff); // ここでroll_oldからrollに動く方向がが正負のいずれかを見る
 
   // roll_diffが一定以上の場合は回転する
   if (roll_diff > roll_diff_th_min)
